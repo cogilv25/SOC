@@ -1,0 +1,13 @@
+ Task 1 ( 20 Marks) - 1050 Words ~ 50 words/mark
+
+ Introduction (90 Words)
+
+ The Role of Computer Science in Developing and Maintaining Robust Hashing Algorithms (300 Words)
+
+ Key Findings of Recent Studies (200 Words)
+
+ Contemporary Algorithms (200 Words)
+
+ The Emerging Threat of Quantum Algorithms (200 Words)
+
+ Conclusion (60 Words)
