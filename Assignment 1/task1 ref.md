@@ -2,3 +2,11 @@
 2. https://eprint.iacr.org/2004/199.pdf
 3. https://eprint.iacr.org/2006/105.pdf
 4. https://www.researchgate.net/publication/318750485_The_First_Collision_for_Full_SHA-1#fullTextFileContent
+5. https://www.researchgate.net/publication/303590313_Secure_Hashing_SHA-1_SHA-2_and_SHA-3
+6. https://arxiv.org/pdf/2408.05997
+7. R.G: 
+8. R.S: 
+9. https://link.springer.com/chapter/10.1007/BFb0054319
+10. https://tosc.iacr.org/plugins/generic/pdfJsViewer/pdf.js/web/viewer.html?file=https%3A%2F%2Ftosc.iacr.org%2Findex.php%2FToSC%2Farticle%2Fdownload%2F11816%2F11321%2F12860#cite.BHT
+11. https://www.ibm.com/topics/quantum-computing
+12. https://eprint.iacr.org/2017/847
