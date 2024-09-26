@@ -7,7 +7,7 @@
 7. R.G: 
 8. R.S: 
 9. https://link.springer.com/chapter/10.1007/BFb0054319
-10. https://tosc.iacr.org/plugins/generic/pdfJsViewer/pdf.js/web/viewer.html?file=https%3A%2F%2Ftosc.iacr.org%2Findex.php%2FToSC%2Farticle%2Fdownload%2F11816%2F11321%2F12860#cite.BHT
+10. https://tosc.iacr.org/plugins/generic/pdfJsViewer/pdf.js/web/viewer.html?file=https%3A%2F%2Ftosc.iacr.org%2Findex.php%2FToSC%2Farticle%2Fdownload%2F11816%2F11321%2F12860
 11. https://www.ibm.com/topics/quantum-computing
 12. https://eprint.iacr.org/2017/847
 13. https://www.sciencedirect.com/science/article/pii/S0020025523001780
