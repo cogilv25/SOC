@@ -1,4 +1,5 @@
-// Technically there are a bunch of issues in here, mostly due to the use of malloc and ignoring it failing.
+// Technically there are some issues in here, mostly due to the use of malloc and ignoring it failing,
+//     however, this is really a one-use program so it's debatably not worth spending time on it.
 //
 //  TODO: Use an arena since we know the upper memory limit of the application at startup.. potentially 
 //        dump everything on the stack honestly, although I'm unsure of the limit, I think it's configurable
@@ -14,7 +15,7 @@
 #include <time.h>
 
 #define N_FILES 21
-#define MAX_BUFFER_SIZE (UINT64)1 << (N_FILES-1)  // I'm not sure when we will hit a limit for malloc/calloc...
+#define MAX_BUFFER_SIZE (UINT64)1 << (N_FILES-1)
 #define MAX_INT_CHARACTER_LENGTH 32 // The max for a 64 bit int is 19 characters, so 32 is overkill!
 
 typedef struct
@@ -267,31 +268,34 @@ void mergeSort(IntBuffer* buf, enum DIRECTION dir)
 	if (buf->count < 4)
 		return;
 
+	// We will use the term tuple to refer to any pair, quad, octet, etc
+	//    from here out.
+
 	// A buffer which we will use as the second buffer in a double buffer
-	//    (the first being buf) to merge our n-tets. We could
+	//    (the first being buf) to merge our tuples. We could
 	//    do everything in the one buffer but it would involve moving
 	//    elements around and thus no longer be merge sort.
-	__int64* buffer = malloc(sizeof(__int64) * buf->count);
+	__int64* buf2 = malloc(sizeof(__int64) * buf->count);
 	// The double buffer
 	__int64* dblBuf[2];
 	dblBuf[0] = buf->data;
-	dblBuf[1] = buffer;
-	// Now we merge 2 n-tets to 1 m-tets where m = n * 2 and n is multiplied
-	//    by 2 each round until n >= count
+	dblBuf[1] = buf2;
+	// Now we merge 2 n-sized tuples to 1 m-sized tuple where m = n * 2 
+	//    and n is multiplied by 2 each round until n >= count - 1. The
+	//    -1 is to account for odd-sized buffers...
 	for (int n = 2; n < buf->count - 1; n *= 2)
 	{
-		// This is a bit of a hack but it deals with odd sized buffers
-		//    by increasing the range of k by one if the buffer is odd
-		//    sized.
-		int oSBC = 0; // Odd-Sized Buffer Compensation
+		int oSBC = 0; // Odd-Sized Buffer Compensation (little hacky)
 		for (int i = 0; i < (buf->count / n) / 2; ++i)
 		{
-			// There's probably a better way...
+			// Increase the range of k on the last iteration of i if the
+			//    buffer is odd-sized to include it in the second tuple.
 			if (isOdd && (i + 2) * n * 2 > buf->count)
 				oSBC = 1;
 
 			int count = 0;
-			// These just make the logic easier to follow.
+			// These just make the logic easier to follow as we don't need
+			//    "i * n * 2" everywhere.
 			__int64 *tup1 = dblBuf[0] + i * n * 2;
 			__int64 *tup2 = tup1 + n;
 			for (int j = 0; j < n; ++j)
@@ -301,6 +305,7 @@ void mergeSort(IntBuffer* buf, enum DIRECTION dir)
 					if (compareInt64s(tup1[j], tup2[k], dir))
 					{
 						dblBuf[1][i * n * 2 + count++] = tup1[j];
+
 						// If we're at the last element of tuple1 we can 
 						//    just insert the rest of tuple2.
 						if(j + 1 == n)
@@ -315,6 +320,7 @@ void mergeSort(IntBuffer* buf, enum DIRECTION dir)
 					else
 					{
 						dblBuf[1][i * n * 2 + count++] = tup2[k];
+
 						// If we're at the last element of tuple2 we can 
 						//    just insert the rest of tuple1.
 						if (count - j >= n + oSBC)
@@ -338,8 +344,9 @@ void mergeSort(IntBuffer* buf, enum DIRECTION dir)
 	//    buf->data points to depends on the number
 	//    of steps performed, we just assign it to
 	//    the correct one and free the other. This is
-	//    not production code where we  would care 
-	//    about unexpected consequences.
+	//    not production code where we need to worry
+	//    about the passed in buffer being on the stack
+	//    or used somewhere else, etc, etc.
 	buf->data = dblBuf[0];
 	free(dblBuf[1]);
 }
@@ -457,7 +464,6 @@ int main(int argc, char ** argv)
 	}
 	else
 	{
-		char filename[64] = { 0 };
 		IntBuffer datasets[3] = { 
 			{calloc(MAX_BUFFER_SIZE, sizeof(__int64)), 0},
 			{calloc(MAX_BUFFER_SIZE, sizeof(__int64)), 0},
