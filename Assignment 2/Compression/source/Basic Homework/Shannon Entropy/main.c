@@ -8,8 +8,8 @@
 #define MAX_DICTIONARY_LENGTH 128
 
 
-// The dictionary parsing is hopefully robust I haven't extensively
-//    tested but it can deal with monstrosities like this:
+// The dictionary parsing is hopefully robust, I haven't extensively
+//    tested it, but, it can deal with monstrosities like this:
 char* testInput = "[   [   'a', \"   110   \"  ],[   'b'  , \"000   111   \"]  ,['t',\"011111\"]  ][asfasfa sfakkljlakshf  ";
 
 // Expected format [['a',"1001"], ['b', "1010"] ...]
@@ -108,13 +108,13 @@ double getAverageCodeLength(const char* dictionary, const uint* countMap)
 void getCharacterCountMapAndCount(uint* countMap, uint* count, const char* string)
 {
 	*count = 0;
-	for (char* p = string; *p != '\0'; ++p)
+	for (const char* p = string; *p != '\0'; ++p)
 	{
 		if (*p < 0)
 		{
 			// This shouldn't happen so we will just exit
 			printf("Invalid string provided!\n");
-			return -1.0;
+			return;
 		}
 		++countMap[*p];
 		++*count;
@@ -141,9 +141,9 @@ double getShannonEntropy(uint count, const uint* countMap)
 //    run it once..
 int main(int argc, char** argv)
 {
-	// Input because bash doesn't preserve internal quotes as
-	//    you would expect...
-	char** testData[2];
+	// Input because bash removes escaped quotes, which sorta defeats
+	//    the point of escaping them
+	char* testData[2] = {0};
 	testData[0] = "["
 		"[' ',\"10    \"],['o',\"0000  \"],['e',\"0001  \"],['h',\"0010  \"],"
 		"['r',\"0011  \"],['t',\"01000 \"],['u',\"01001 \"],['a',\"010100\"],"
@@ -165,8 +165,8 @@ int main(int argc, char** argv)
 	//                                                       .  .
 	// I'm too far in now...
 
-	// This is all a little odd but it works... The extension program
-	//    will more than likely make all this redundant anyway...
+	// This is all a little odd but it works... The extension task
+	//    will make all this redundant anyway...
 	uint charCountMap[128];
 	uint count;
 	memset(charCountMap, 0, sizeof(uint) * 128);

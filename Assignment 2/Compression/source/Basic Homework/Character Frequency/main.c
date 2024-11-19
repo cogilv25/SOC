@@ -31,9 +31,9 @@ int main(int argc, char** argv)
 		if (occurances[i] > 0)
 		{
 			if (i < 34)
-				printf("(%d): %llu\n", i-1, occurances[i]);
+				printf("(%d): %u\n", i-1, occurances[i]);
 			else
-				printf("   %c: %llu\n", i-1, occurances[i]);
+				printf("   %c: %u\n", i-1, occurances[i]);
 		}
 
 	return 0;
