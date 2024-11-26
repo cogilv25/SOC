@@ -1,5 +1,6 @@
 #pragma once
 #include "common.h"
+#include "TSPSolve.h"
 #include <iostream>
 #include <functional>
 
@@ -23,41 +24,35 @@ double maximumDistance3D(double x1, double y1, double z1, double x2, double y2, 
 double geographicalDistance(double latitude1, double longitude1, double latitude2, double longitude2);
 double pseudoEuclidianDistance2D(double x1, double y1, double x2, double y2);
 
-struct TSPPath
-{
-	uint64 count;
-	double fullLength;
-	std::vector<uint64> path;
-
-	void print();
-};
 
 class TSPMatrix
 {
 protected:
 	uint64 matrixWidth;
-	double* matrix;
+	std::vector<double> matrix;
 
 	// Should be called by child class constructors
 	void _initializeMatrix(std::vector<double> coords, uint8 step, std::function<void(uint64,double*,double*)> fun);
+	
 public:
+	TSPMatrix(std::vector<double> distances, uint64 width);
 	TSPMatrix();
 	~TSPMatrix();
 
-	TSPPath solve();
+	TSPPath solve(TSPSolveFunction solver);
 	void print(uint8 precision = 2);
 };
+
+TSPMatrix createTSPMatrix(const char* filepath);
 
 class TSPMatrix2D : public TSPMatrix
 {
 public:
 	TSPMatrix2D(std::vector<double> positions, DistanceFunction2D distanceFunction);
-	TSPMatrix2D(const char* filepath);
 };
 
 class TSPMatrix3D : public TSPMatrix
 {
 public:
 	TSPMatrix3D(std::vector<double> positions, DistanceFunction3D distanceFunction);
-	TSPMatrix3D(const char* filepath);
 };

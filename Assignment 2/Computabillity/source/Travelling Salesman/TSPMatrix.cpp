@@ -27,12 +27,12 @@ const std::vector<std::string> TSPLIB_SPEC =
 const std::vector<std::string> TSPLIB_DATA =
 {
 	"NODE_COORD_SECTION",
+	"EDGE_WEIGHT_SECTION",
 	"DEPOT_SECTION",
 	"EDGEJ3ATA_SECTION",
 	"FIXED_EDGES-SECTION",
 	"DISPLAY_DATA_SECTION",
-	"TOURJ3ECTION",
-	"EDGE_WEIGHT_SECTION"
+	"TOURJ3ECTION"
 };
 
 const std::unordered_map<std::string, DistanceFunction2D> TSPLIB_FUN_MAP2D =
@@ -151,88 +151,7 @@ double pseudoEuclidianDistance2D(double x1, double y1, double x2, double y2)
 	return distance > rDist ? rDist + 1 : rDist;
 }
 
-
-void TSPMatrix::_initializeMatrix(std::vector<double> coords, uint8 step, std::function<void(uint64, double*, double*)> fun)
-{
-	matrixWidth = coords.size() / step;
-	// We may catch the possible exception thrown here somewhere
-	//    else or we may just let the program terminate...
-	matrix = new double[matrixWidth * matrixWidth];
-
-	for (uint64 i = 0; i < matrixWidth; ++i)
-	{
-		for (uint64 j = 0; j < matrixWidth; ++j)
-		{
-			uint64 n = j + i * matrixWidth;
-			if (i == j)
-				matrix[n] = 0;
-			else
-				fun(n, &coords[i * step], &coords[j * step]);
-		}
-	}
-}
-
-TSPMatrix::TSPMatrix()
-{
-	matrix = 0;
-	matrixWidth = 0;
-}
-
-TSPMatrix::~TSPMatrix()
-{
-	if(matrix != 0)
-		delete[] matrix;
-}
-
-TSPPath TSPMatrix::solve()
-{
-	if (matrix == 0 || matrixWidth == 0)
-		throw std::runtime_error("Attempted to solve an uninitialized TSPMatrix");
-
-
-	std::vector<uint64> indices;
-	for (uint64 i = 1; i < matrixWidth; ++i)
-		indices.push_back(i);
-
-	TSPPath path; 
-	path.count = matrixWidth;
-	path.fullLength = DBL_MAX;
-	path.path = std::vector<uint64>(matrixWidth);
-	std::vector<uint64> currentPath(matrixWidth);
-	do
-	{
-		double pathLength = 0;
-		uint64 matX = 0;
-		uint64 matY = indices[0];
-		for (uint64 i = 0; i < indices.size(); ++i)
-		{
-			matY = indices[i];
-			pathLength += matrix[matY * matrixWidth + matX];
-			currentPath[i] = matX;
-			matX = indices[i];
-		}
-		pathLength += matrix[matY * matrixWidth];
-		currentPath[matrixWidth - 1] = matY;
-
-		if (pathLength < path.fullLength)
-		{
-			path.fullLength = pathLength;
-			std::copy(currentPath.begin(), currentPath.end(), path.path.begin());
-		}
-	} while (std::next_permutation(indices.begin(), indices.end()));
-
-	return path;
-}
-
-TSPMatrix2D::TSPMatrix2D(std::vector<double> coords, DistanceFunction2D distanceFunction)
-{
-	_initializeMatrix(coords, 2, [&](uint64 n, double* coord1, double* coord2)
-		{
-			matrix[n] = distanceFunction(coord1[0], coord1[1], coord2[0], coord2[1]);
-		});
-}
-
-TSPMatrix2D::TSPMatrix2D(const char* filepath)
+TSPMatrix createTSPMatrix(const char* filepath)
 {
 	std::string line;
 	std::ifstream file(filepath, std::ios::in);
@@ -242,9 +161,11 @@ TSPMatrix2D::TSPMatrix2D(const char* filepath)
 
 	// Parse Specification
 	uint64 expectedNodeCount = 0;
-	DistanceFunction2D distanceFunction = 0;
+	DistanceFunction2D distanceFunction2D = 0;
+	DistanceFunction3D distanceFunction3D = 0;
 	bool firstComment = true;
-	for (std::getline(file, line); file.good(); std::getline(file,line))
+	bool explicitDistances = false;
+	for (std::getline(file, line); file.good(); std::getline(file, line))
 	{
 		bool valid = false;
 		for (uint8 i = 0; i < TSPLIB_SPEC.size(); ++i)
@@ -285,10 +206,22 @@ TSPMatrix2D::TSPMatrix2D(const char* filepath)
 			{
 				pos = value.find_first_not_of(" \t\r\v\f\n");
 				if (pos >= line.length() - 1) throw std::runtime_error(std::string("Invalid TSPLIB specification: ").append(filepath));
+			
 				auto it = TSPLIB_FUN_MAP2D.find(value.substr(pos));
-				if (it == TSPLIB_FUN_MAP2D.end()) throw std::runtime_error(std::string("Unknown TSPLIB specification: ")
-					.append(filepath).append("\nUnknown specification key: ").append(value.substr(pos)));
-				distanceFunction = it->second;
+				if (it == TSPLIB_FUN_MAP2D.end())
+				{
+					auto it = TSPLIB_FUN_MAP3D.find(value.substr(pos));
+					if (it == TSPLIB_FUN_MAP3D.end())
+						if (value.substr(pos).find("EXPLICIT") != std::string::npos)
+							explicitDistances = true;
+						else
+							throw std::runtime_error(std::string("Unknown TSPLIB specification: ")
+								.append(filepath).append("\nUnknown EDGE_WEIGHT_TYPE: ").append(value.substr(pos)));
+					else
+						distanceFunction3D = it->second;
+				}
+				else
+					distanceFunction2D = it->second;
 			}
 			else
 			{
@@ -299,17 +232,18 @@ TSPMatrix2D::TSPMatrix2D(const char* filepath)
 
 		if (valid) continue;
 
-		if (distanceFunction == 0)
+		if (distanceFunction2D == 0 && distanceFunction3D == 0 && !explicitDistances)
 			throw std::runtime_error(std::string("EDGE_WEIGHT_TYPE not specified in: ").append(filepath));
 
-		// Skip unused data sections until first NODE_COORD_SECTION
+		// Skip unused data sections until first NODE_COORD_SECTION or EDGE_WEIGHT_SECTION
+		uint8 index = explicitDistances ? 1 : 0;
 		for (; file.good(); std::getline(file, line))
 		{
-			size_t pos = line.find(TSPLIB_DATA[0]);
+			size_t pos = line.find(TSPLIB_DATA[index]);
 			if (pos == std::string::npos) continue;
 			break;
 		}
-		if(!file.good() || file.eof()) throw std::runtime_error(std::string("Node data missing from: ").append(filepath));
+		if (!file.good() || file.eof()) throw std::runtime_error(std::string("Node data missing from: ").append(filepath));
 
 		// If we get here we have processed the specification and the next line
 		//    is the start of the node data section
@@ -320,9 +254,11 @@ TSPMatrix2D::TSPMatrix2D(const char* filepath)
 	bool eofFound = false;
 	bool oOOIFlag = false; //Out Of Order Indices Flag
 	uint64 nodeCount = 0;
-	std::vector<double> coords(expectedNodeCount * 2);
+	uint64 stride = explicitDistances ? expectedNodeCount : (distanceFunction3D == 0 ? 2 : 3);
+	uint64 expectedDistanceCount = explicitDistances ? 0 : expectedNodeCount * stride;
+	std::vector<double> coords(expectedDistanceCount);
 
-	for (std::getline(file, line); file.good() && !file.eof(); std::getline(file, line))
+	for (std::getline(file, line); file.good() && !file.eof() && !eofFound; std::getline(file, line))
 	{
 		if (line.find("EOF") != std::string::npos)
 		{
@@ -330,54 +266,93 @@ TSPMatrix2D::TSPMatrix2D(const char* filepath)
 			break;
 		}
 
-		// Get index
 		size_t pos = line.find_first_not_of(" \t\r\v\f\n");
 		if (pos == std::string::npos) continue; // <- Skip blank lines
-		uint64 index = std::stoull(line) - 1;
-		
-		double x, y;
-		// Get x (first coord)
-		pos = line.find_first_of(" \t\r\v\f\n", pos);
-		if (pos != std::string::npos)
-			pos = line.find_first_not_of(" \t\r\v\f\n", pos);
 
-		if (pos > line.length() - 1) throw std::runtime_error(std::string("Invalid TSPLIB data, missing coordinate in file: ")
-			.append(filepath).append(" with index: ").append(std::to_string(index)));
-		x = stod(line.substr(pos));
+		if (explicitDistances)
+	{
+			if (line[pos] < 48 || line[pos] > 57)
+			{
+				eofFound = true;
+				break;
+			}
+			for (uint64 i = 0;pos < line.length(); ++i)
+			{
+				if (pos >= line.length()) break;
+				coords.push_back(stod(line.substr(pos)));
+				pos = line.find_first_of(" \t\r\v\f\n", pos);
+				if (pos != std::string::npos)
+					pos = line.find_first_not_of(" \t\r\v\f\n", pos);
+			}
+		}
+		else
+		{
+			// Get index
+			uint64 index = std::stoull(line) - 1;
 
-		// Get y (second coord)
-		pos = line.find_first_of(" \t\r\v\f\n", pos);
-		if(pos != std::string::npos)
-			pos = line.find_first_not_of(" \t\r\v\f\n", pos);
+			double x, y, z;
+			// Get x (first coord)
+			pos = line.find_first_of(" \t\r\v\f\n", pos);
+			if (pos != std::string::npos)
+				pos = line.find_first_not_of(" \t\r\v\f\n", pos);
 
-		if (pos > line.length() - 1) throw std::runtime_error(std::string("Invalid TSPLIB data, missing coordinate in file: ")
-			.append(filepath).append(" with index: ").append(std::to_string(index)));
-		y = stod(line.substr(pos));
+			if (pos > line.length() - 1) throw std::runtime_error(std::string("Invalid TSPLIB data, missing 1st coordinate in file: ")
+				.append(filepath).append(" with index: ").append(std::to_string(index)));
+			x = stod(line.substr(pos));
 
+			// Get y (second coord)
+			pos = line.find_first_of(" \t\r\v\f\n", pos);
+			if (pos != std::string::npos)
+				pos = line.find_first_not_of(" \t\r\v\f\n", pos);
 
-		if (!oOOIFlag && index != nodeCount)
-			oOOIFlag = true;
+			if (pos > line.length() - 1) throw std::runtime_error(std::string("Invalid TSPLIB data, missing 2nd coordinate in file: ")
+				.append(filepath).append(" with index: ").append(std::to_string(index)));
+			y = stod(line.substr(pos));
 
-		if (index * 2 + 1 > coords.size())
-			coords.resize((index + 1) * 2);
+			if (distanceFunction3D != 0)
+			{
+				// Get z (third coord)
+				pos = line.find_first_of(" \t\r\v\f\n", pos);
+				if (pos != std::string::npos)
+					pos = line.find_first_not_of(" \t\r\v\f\n", pos);
 
-		coords[index * 2] = x;
-		coords[index * 2 + 1] = y;
+				if (pos > line.length() - 1) throw std::runtime_error(std::string("Invalid TSPLIB data, missing 3rd coordinate in file: ")
+					.append(filepath).append(" with index: ").append(std::to_string(index)));
+				z = stod(line.substr(pos));
+			}
 
+			if (!oOOIFlag && index != nodeCount)
+				oOOIFlag = true;
+
+			if (index * stride + 1 > coords.size())
+				coords.resize((index + 1) * stride);
+
+			coords[index * stride] = x;
+			coords[index * stride + 1] = y;
+		}
 		++nodeCount;
+
 	}
 
 
-	
+
 	if (!(eofFound || file.eof()))
 		throw std::runtime_error(std::string("There was an file stream error loading the file: ").append(filepath));
 
 	if (nodeCount < 1)
 		throw std::runtime_error(std::string("0 nodes were loaded from the file: ").append(filepath));
 
-	if (coords.size() != nodeCount * 2)
+	if (explicitDistances)
+	{
+		if (coords.size() != stride * stride)
+			throw std::runtime_error(std::string("Invalid matrix dimensions in file: ").append(filepath));
+	}
+	else if (coords.size() != stride * nodeCount)
+	{
+		std::cout << "Actual: " << coords.size() << " Expected: " << stride * nodeCount << " Node Count: " << nodeCount << std::endl;
 		throw std::runtime_error(std::string("Invalid node numbering in file: ").append(filepath));
-	
+	}
+
 	if (expectedNodeCount > 0 && nodeCount != expectedNodeCount)
 		std::cerr << "Warning: DIMENSION specified does not match actual DIMENSION in: " << filepath << std::endl;
 
@@ -386,7 +361,64 @@ TSPMatrix2D::TSPMatrix2D(const char* filepath)
 
 	std::cout << "Successfully loaded: " << filepath << std::endl;
 
+	if (explicitDistances)
+		return TSPMatrix(coords, stride);
+	if (stride == 2)
+		return TSPMatrix2D(coords, distanceFunction2D);
+	else
+		return TSPMatrix3D(coords, distanceFunction3D);
+}
 
+
+void TSPMatrix::_initializeMatrix(std::vector<double> coords, uint8 stride, std::function<void(uint64, double*, double*)> fun)
+{
+	matrixWidth = coords.size() / stride;
+	// We may catch the possible exception thrown here somewhere
+	//    else or we may just let the program terminate...
+	matrix = std::vector<double>(matrixWidth * matrixWidth);
+
+	for (uint64 i = 0; i < matrixWidth; ++i)
+	{
+		for (uint64 j = 0; j < matrixWidth; ++j)
+		{
+			uint64 n = j + i * matrixWidth;
+			if (i == j)
+				matrix[n] = 0;
+			else
+				fun(n, &coords[i * stride], &coords[j * stride]);
+		}
+	}
+}
+
+TSPMatrix::TSPMatrix(std::vector<double> distances, uint64 width)
+{
+	// Although we could compute this, the caller should know
+	//    it so why waste the cycles.
+	if (distances.size() != width * width)
+		throw std::runtime_error("Provided distance matrix and width do not match!");
+
+	matrix = std::vector<double>(distances.size());
+	std::copy(distances.begin(), distances.end(), matrix.begin());
+
+	matrixWidth = width;
+}
+
+TSPMatrix::TSPMatrix()
+{
+	matrixWidth = 0;
+}
+
+TSPMatrix::~TSPMatrix()
+{
+}
+
+TSPPath TSPMatrix::solve(TSPSolveFunction solver)
+{
+	return solver(matrix, matrixWidth);
+}
+
+TSPMatrix2D::TSPMatrix2D(std::vector<double> coords, DistanceFunction2D distanceFunction)
+{
 	_initializeMatrix(coords, 2, [&](uint64 n, double* coord1, double* coord2)
 		{
 			matrix[n] = distanceFunction(coord1[0], coord1[1], coord2[0], coord2[1]);
@@ -401,15 +433,9 @@ TSPMatrix3D::TSPMatrix3D(std::vector<double> coords, DistanceFunction3D distance
 		});
 }
 
-TSPMatrix3D::TSPMatrix3D(const char* filepath)
-{
-	// TODO: Implement
-	throw std::runtime_error("Initializing a TSPMatrix3D with a file is not currently implemented");
-}
-
 void TSPMatrix::print(uint8 precision)
 {
-	if (matrix == 0 || matrixWidth == 0)
+	if (matrix.size() == 0 || matrixWidth == 0)
 		throw std::runtime_error("Attempted to print an uninitialized TSPMatrix");
 		
 	std::cout << " Matrix: " << std::endl << ' ';
@@ -421,14 +447,4 @@ void TSPMatrix::print(uint8 precision)
 		}
 		std::cout << std::endl << ' ';
 	}
-}
-
-void TSPPath::print()
-{
-	std::cout << " Path Length: " << fullLength << std::endl;
-	std::cout << " Node Count: " << count << std::endl;
-	std::cout << " Path: " << std::endl << " ( " << path[0];
-	for (uint64 i = 1; i < path.size(); ++i)
-		std::cout << ", " << path[i];
-	std::cout << ')' << std::endl;
 }
