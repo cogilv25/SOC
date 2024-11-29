@@ -180,7 +180,7 @@ TSPMatrix createTSPMatrix(const char* filepath)
 			{
 				pos = value.find_first_not_of(" \t\r\v\f\n");
 				if (pos > line.length() - 1) throw std::runtime_error(std::string("Invalid TSPLIB specification: ").append(filepath));
-				std::cout << "TSP Problem Name: " << value.substr(pos) << std::endl;
+				std::cout << " TSP Problem Name: " << value.substr(pos) << std::endl;
 			}
 			else if (i == 7)
 			{
@@ -194,9 +194,9 @@ TSPMatrix createTSPMatrix(const char* filepath)
 				if (firstComment)
 				{
 					firstComment = false;
-					std::cout << "Comments:" << std::endl;
+					std::cout << " Comments:" << std::endl;
 				}
-				std::cout << value.substr(pos) << std::endl;
+				std::cout << " " << value.substr(pos) << std::endl;
 			}
 			else if (i == 3)
 			{
@@ -225,7 +225,7 @@ TSPMatrix createTSPMatrix(const char* filepath)
 			}
 			else
 			{
-				std::cout << "Ignoring TSP Specification Key: " << TSPLIB_SPEC[i] << std::endl;
+				std::cout << " Ignoring TSP Specification Key: " << TSPLIB_SPEC[i] << std::endl;
 			}
 			break;
 		}
@@ -349,17 +349,17 @@ TSPMatrix createTSPMatrix(const char* filepath)
 	}
 	else if (coords.size() != stride * nodeCount)
 	{
-		std::cout << "Actual: " << coords.size() << " Expected: " << stride * nodeCount << " Node Count: " << nodeCount << std::endl;
+		std::cout << " Actual: " << coords.size() << " Expected: " << stride * nodeCount << " Node Count: " << nodeCount << std::endl;
 		throw std::runtime_error(std::string("Invalid node numbering in file: ").append(filepath));
 	}
 
 	if (expectedNodeCount > 0 && nodeCount != expectedNodeCount)
-		std::cerr << "Warning: DIMENSION specified does not match actual DIMENSION in: " << filepath << std::endl;
+		std::cerr << " Warning: DIMENSION specified does not match actual DIMENSION in: " << filepath << std::endl;
 
 	if (oOOIFlag)
-		std::cerr << "Warning: Node indices were out of order: " << filepath << std::endl;
+		std::cerr << " Warning: Node indices were out of order: " << filepath << std::endl;
 
-	std::cout << "Successfully loaded: " << filepath << std::endl;
+	std::cout << " Successfully loaded: " << filepath << std::endl << std::endl;
 
 	if (explicitDistances)
 		return TSPMatrix(coords, stride);
@@ -437,8 +437,8 @@ void TSPMatrix::print(uint8 precision)
 {
 	if (matrix.size() == 0 || matrixWidth == 0)
 		throw std::runtime_error("Attempted to print an uninitialized TSPMatrix");
-		
-	std::cout << " Matrix: " << std::endl << ' ';
+
+	std::cout << " ";
 	for (uint64 y = 0; y < matrixWidth; ++y)
 	{
 		for (uint64 x = 0; x < matrixWidth; ++x)

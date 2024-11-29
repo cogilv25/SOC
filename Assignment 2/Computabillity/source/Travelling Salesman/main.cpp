@@ -4,12 +4,10 @@
 #include <iomanip>
 #include <Windows.h>
 
-// https://oeclass.aua.gr/eclass/modules/document/file.php/310/3.%20%CE%91%CF%81%CF%87%CE%B5%CE%AF%CE%B1%20VRP%20-%20format.pdf
-// http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/TSPFAQ.html#:~:text=Q%3A%20What%20does%20the%20function,int%20value%20larger%20in%20magnitude.
-
 // Flags and command line argument state.
 bool mFlag = false;
 bool sFlag = false;
+bool qFlag = false;
 const char* input = 0;
 
 struct {
@@ -19,53 +17,17 @@ struct {
 
 void printUsage()
 {
-	std::cout << "usage: tsp [-b] [-n] [-m] [-c] [-t] [-s] <input>" << std::endl << std::endl;
+	std::cout << "usage: tsp [-b] [-n] [-m] [-c[n,h,b]] [-t] [-s] <input>" << std::endl << std::endl;
 	std::cout << "<input> may be a filepath or a number in which case a random problem with input used as the width is generated" << std::endl << std::endl;
 	std::cout << "Flags: " << std::endl;
 	std::cout << "    -s Generate and print statistics." << std::endl;
+	std::cout << "    -q Path length and Node Count only. Do not print full path." << std::endl;
 	std::cout << "    -m Print the matrix, not recommended for large datasets" << std::endl;
 	std::cout << "    -b Use the brute force algorithm." << std::endl;
 	std::cout << "    -n Use the nearest neighbour algorithm" << std::endl;
 	std::cout << "    -t Use the minimum spanning tree algorithm" << std::endl;
-	std::cout << "    -c Use the Christofide's algorithm" << std::endl;
+	std::cout << "    -c[n,h,b] Use the Christofide's algorithm. Matching is done with nearest neighbour (-cn), brute force (-cb) or Hungarian Minimum Matching(-ch)" << std::endl;
 }
-
-std::vector<double> coords1 =
-{
-	1,2,
-	3,2,
-	3,5,
-	1,5
-};
-
-std::vector<double> coords2 =
-{
-	1,2,
-	3,2,
-	3,5,
-	1,5,
-	12,14,
-	20,20,
-	-1.5,-120,
-	0,8,
-	100,220,
-	45.73, 12.9
-};
-
-std::vector<double> coords3 =
-{
-	1,2,
-	3,2,
-	3,5,
-	1,5,
-	12,14,
-	20,20,
-	-1.5,-120,
-	0,8,
-	100,220,
-	45.73, 12.9,
-	18,99.99
-};
 
 auto startTimer()
 {
@@ -79,6 +41,7 @@ template<typename T> double stopTimer(T start)
 	return ((std::chrono::duration<double>)(std::chrono::high_resolution_clock::now() - start)).count();
 }
 
+// TODO: refactor, little jumbled
 void printTimeInApproprateUnits(double seconds)
 {
 	if (seconds < 1.0)
@@ -90,38 +53,61 @@ void printTimeInApproprateUnits(double seconds)
 			if (seconds < 1.0)
 			{
 				seconds *= 1000.0;
-				std::cout << std::fixed << std::setprecision(0) << seconds << " nano seconds" << std::endl;
+				std::cout << std::fixed << std::setprecision(0) << seconds << " Nano Seconds" << std::endl;
 			}
 			else
 			{
-				std::cout << std::fixed << std::setprecision(2) << seconds << " micro seconds" << std::endl;
+				std::cout << std::fixed << std::setprecision(2) << seconds << " Micro Seconds" << std::endl;
 			}
 		}
 		else
 		{
-			std::cout << std::fixed << std::setprecision(2) << seconds << " milli seconds" << std::endl;
+			std::cout << std::fixed << std::setprecision(2) << seconds << " Milli Seconds" << std::endl;
 		}
 	}
 	else if (seconds > 60)
 	{
-		std::cout << std::fixed << (uint32)floor(seconds / 60.0) << " minutes and ";
-		std::cout << std::fixed << std::setprecision(2) << seconds - (floor(seconds / 60.0) * 60.0) << " seconds" << std::endl;
+		std::cout << std::fixed << (uint32)floor(seconds / 60.0) << " Minutes and ";
+		std::cout << std::fixed << std::setprecision(2) << seconds - (floor(seconds / 60.0) * 60.0) << " Seconds" << std::endl;
 	}
 	else
 	{
-		std::cout << std::fixed << std::setprecision(2) << seconds << " seconds" << std::endl;
+		std::cout << std::fixed << std::setprecision(2) << seconds << " Seconds" << std::endl;
 	}
 }
 
+
+void printSizeInApproprateUnits(uint64 bytes)
+{
+	if (bytes < 1000)
+		std::cout << bytes << " Bytes" << std::endl;
+	else
+	{
+		double bigger =  (double)bytes / 1000.0;
+		if (bigger < 1000)
+			std::cout << std::fixed << std::setprecision(2) << bigger << " Kilo-Bytes" << std::endl;
+		else
+		{
+			bigger /= 1000.0;
+			if (bigger < 1000)
+				std::cout << std::fixed << std::setprecision(2) << bigger << " Mega-Bytes" << std::endl;
+			else
+			{
+				bigger /= 1000.0;
+				if (bigger < 1000)
+					std::cout << std::fixed << std::setprecision(2) << bigger << " Giga-Bytes" << std::endl;
+			}
+		}
+		
+	}
+}
 
 int main(int argc, const char ** argv)
 {
 
 #ifdef _DEBUG
 	argc = 4;
-	const char* args[] = { "", "-n", "-s", "../../data/travelling salesman/usa13509.tsp"};
-	//argc = 5;
-	//const char* args[] = { "", "-s", "-b", "-m", "11" };
+	const char* args[] = { "", "-ch", "-s", "burma14.tsp"};
 	argv = args;
 #endif
 	try {
@@ -142,6 +128,15 @@ int main(int argc, const char ** argv)
 					break;
 				case 'c':
 					solveFunction = solveTSPChristofides;
+					if (argv[i][2] == 'n')
+						break; // Default
+					else if (argv[i][2] == 'b')
+						solveAlgorithmVariant = 1;
+					else if (argv[i][2] == 'h')
+						solveAlgorithmVariant = 2;
+					else
+						std::cout << std::string("Warning: No matching algorithm was chosen for Christofides! "
+						"Defaulting to nearest neighbour. Argument number: ").append(std::to_string(i)) << std::endl;
 					break;
 				case 'b':
 					solveFunction = solveTSPBruteForce;
@@ -151,6 +146,9 @@ int main(int argc, const char ** argv)
 					break;
 				case 'm':
 					mFlag = true;
+					break;
+				case 'q':
+					qFlag = true;
 					break;
 				default:
 					throw std::runtime_error(std::string("Unrecognized flag: ").append(argv[i]));
@@ -210,34 +208,32 @@ int main(int argc, const char ** argv)
 			mat = createTSPMatrix(input);
 		}
 		stats.matrixInitializationTime = stopTimer(start);
-		//mat = &createTSPMatrix("../../data/travelling salesman/att48.tsp");
-		//mat = &TSPMatrix2D(coords1, euclideanDistance2D);
 		start = startTimer();
 		TSPPath path = mat.solve(solveFunction);
 		stats.solveTime = stopTimer(start);
 		
 		if (mFlag)
 		{
+			std::cout << std::endl << "---------------   Matrix   ---------------" << std::endl;
 			mat.print();
 			std::cout << std::endl;
 		}
 
-		path.print();
+		std::cout << std::endl << "---------------   Output   ---------------" << std::endl;
+		path.print(!qFlag);
 
 		if (sFlag)
 		{
-			std::cout << std::endl << "Statistics:" << std::endl;
-			std::cout << "----    Time    ----" << std::endl;
-			std::cout << "Matrix Initialization : "; printTimeInApproprateUnits(stats.matrixInitializationTime);
-			std::cout << "Solving Algorithm     : "; printTimeInApproprateUnits(stats.solveTime);
+			std::cout << std::endl << "--------------- Statistics ---------------" << std::endl;
+			std::cout << " Matrix Size           : "; printSizeInApproprateUnits(sizeof(double)* mat.getWidth()* mat.getWidth());
+			std::cout << " Matrix Initialization : "; printTimeInApproprateUnits(stats.matrixInitializationTime);
+			std::cout << " Solving Algorithm     : "; printTimeInApproprateUnits(stats.solveTime);
 
 		}
 	}
 	catch (std::exception e)
 	{
-		// Literally just wanting to add a newline at the moment
-		//    may do something else later although I see little need..
-		std::cerr << e.what() << std::endl;
+		std::cerr << " " << e.what() << std::endl;
 	}
 	return 0;
 }

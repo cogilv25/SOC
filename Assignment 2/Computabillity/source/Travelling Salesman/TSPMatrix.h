@@ -41,6 +41,7 @@ public:
 
 	TSPPath solve(TSPSolveFunction solver);
 	void print(uint8 precision = 2);
+	uint64 getWidth() { return matrixWidth; };
 };
 
 TSPMatrix createTSPMatrix(const char* filepath);

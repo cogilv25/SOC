@@ -192,7 +192,7 @@ void insertionSort(IntBuffer* buf, enum DIRECTION dir)
 		}
 	}
 }
-//   TODO: !IMPORTANT Retest odd-sized arrays
+
 void mergeSort(IntBuffer* buf, enum DIRECTION dir)
 {
 	// This is a bit annoying in C.. it may be easier to emulate the way
@@ -203,7 +203,7 @@ void mergeSort(IntBuffer* buf, enum DIRECTION dir)
 	//   If we were multi-threading it might be worth doing it as intended...
 	//   Even then it's probably better to just create multiple IntBuffers
 	//   pointing to different parts of the full array and then do the final
-	//   merge on the main thread one the others finish.
+	//   merge on the main thread once the others finish.
 
 
 	bool isOdd = (buf->count % 2 == 1);
@@ -391,26 +391,26 @@ void printTimeInBestUnit(double time)
 {
 	if (time < 1000.0)
 	{
-		printf("%.1f micro-seconds\n", time);
+		printf("%.1f Micro-Seconds\n", time);
 		return;
 	}
 
 	time /= 1000.0;
 	if (time < 1000.0)
 	{
-		printf("%.3f milli-seconds\n", time);
+		printf("%.3f Milli-Seconds\n", time);
 		return;
 	}
 
 	time /= 1000.0;
 	if (time < 60.0)
 	{
-		printf("%.3f seconds\n", time);
+		printf("%.3f Seconds\n", time);
 		return;
 	}
 
 	time /= 60.0;
-	printf("%.3f minutes\n", time);
+	printf("%.3f Minutes\n", time);
 }
 
 int main(int argc, char ** argv)
@@ -418,7 +418,7 @@ int main(int argc, char ** argv)
 	initHFT();
 	
 #ifdef _DEBUG
-	char* test_argv[2] = { "", "data/handmade/14.dat" };
+	char* test_argv[2] = { "", "handmade/14.dat" };
 	argv = test_argv;
 	argc = 2;
 #endif

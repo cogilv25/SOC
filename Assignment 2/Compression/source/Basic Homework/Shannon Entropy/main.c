@@ -142,7 +142,7 @@ double getShannonEntropy(uint count, const uint* countMap)
 int main(int argc, char** argv)
 {
 	// Input because bash removes escaped quotes, which sorta defeats
-	//    the point of escaping them
+	//    the point of escaping them..
 	char* testData[2] = {0};
 	testData[0] = "["
 		"[' ',\"10    \"],['o',\"0000  \"],['e',\"0001  \"],['h',\"0010  \"],"
