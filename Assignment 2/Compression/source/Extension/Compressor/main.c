@@ -1028,19 +1028,39 @@ int main(int argc, char** argv)
 			printf("\n---- Output  ----\n");
 			printf("Digest Size               : %llu Bytes", stats.bitsAfterEncoding / 8);
 			(stats.bitsAfterEncoding % 8 > 0) ? printf(" and %llu Bits\n", stats.bitsAfterEncoding % 8) : printf("\n");
-
-			printf("Dictionary Size           : %llu Bytes", stats.encodedDictionaryBits / 8);
-			(stats.encodedDictionaryBits % 8 > 0) ? printf(" and %llu Bits\n", stats.encodedDictionaryBits % 8) : printf("\n");
-
 			double compressionRatio = (double)(stats.bitsAfterEncoding) / (double)(stats.bytesBeforeEncoding * 8);
 			printf("Digest Compression Ratio  : %.3f (%.1f%%)\n", compressionRatio, compressionRatio * 100.0);
 
 			if (oFlag)
 			{
+				printf("Dictionary Size           : %llu Bytes", stats.encodedDictionaryBits / 8);
+				(stats.encodedDictionaryBits % 8 > 0) ? printf(" and %llu Bits\n", stats.encodedDictionaryBits % 8) : printf("\n");
 				uint64 totalBytes = (stats.bitsAfterEncoding + stats.encodedDictionaryBits + 7) / 8;
 				printf("Output File Size          : %llu Bytes\n", totalBytes);
 				compressionRatio = (double)(totalBytes) / (double)stats.bytesBeforeEncoding;
 				printf("File Compression Ratio    : %.3f (%.1f%%)\n", compressionRatio, compressionRatio * 100.0);
+			}
+
+
+			printf("\n---- Fixed-Length Encoding Alternative ----\n");
+			uint8 fleBits = ceil(log2(stats.uniqueBytesUsed));
+			uint64 fleMessageBits = stats.bytesBeforeEncoding * fleBits;
+			printf("Digest Size               : %llu Bytes", fleMessageBits / 8);
+			(fleMessageBits % 8 > 0) ? printf(" and %llu Bits\n", fleMessageBits % 8) : printf("\n");
+			compressionRatio = (double)(fleMessageBits) / (double)(stats.bytesBeforeEncoding * 8);
+			printf("Digest Compression Ratio  : %.3f (%.1f%%)\n", compressionRatio, compressionRatio * 100.0);
+			if (oFlag)
+			{
+				// 5 bits for flags 3 bits to specify encoding used 16 bytes for bitmask
+				//    finally dictionary entries will be fleBits * uniquechars
+				uint64 fleDBits = (17 * 8) + fleBits * stats.uniqueBytesUsed;
+				printf("Dictionary Size           : %llu Bytes", fleDBits / 8);
+				(fleDBits % 8 > 0) ? printf(" and %llu Bits\n", fleDBits % 8) : printf("\n");
+				uint64 fleTotalBytes = (fleMessageBits + fleDBits + 7) / 8;
+				printf("Output File Size          : %llu Bytes\n", fleTotalBytes);
+				compressionRatio = (double)(fleTotalBytes) / (double)stats.bytesBeforeEncoding;
+				printf("File Compression Ratio    : %.3f (%.1f%%)\n", compressionRatio, compressionRatio * 100.0);
+
 			}
 			
 

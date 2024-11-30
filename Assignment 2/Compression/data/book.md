@@ -1,5 +1,3 @@
-This book can be found at https://github.com/mlschmitt/classic-books-markdown/blob/main/Aristotle/Nicomachean%20Ethics.md
-
 # Title: Nicomachean Ethics
 
 ## Author: Aristotle
